@@ -71,6 +71,19 @@ For each one it reports what you lose in business terms, not just that it exists
 > every tag inside it goes with it. One broken container can take down Google Ads, GA4, Meta,
 > affiliate and partner tags simultaneously, with no visible symptom.
 
+## It also finds what's already broken
+
+Separately from the deadline, it flags **duplicate vendor accounts** — two Meta pixel IDs, two GA4
+properties, two Google Ads conversion accounts sitting in the same field.
+
+Both fire on every purchase, so conversions are counted twice. Reported ROAS looks better than it
+is, and any bid placed on that number overspends. The usual cause is an agency handover where the
+previous tag was never removed, and it is costing money *today*, independently of the migration.
+
+It correctly ignores a single ID appearing several times — Google Ads legitimately repeats its
+`AW-` identifier in both `config` and `send_to`, and flagging that would fire on nearly every
+correctly configured store.
+
 ## For agencies
 
 Add a row per client store and it ranks the whole list worst-first, with a **Can't migrate** column
