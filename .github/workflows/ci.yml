@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Build before testing: packages import each other's compiled output, so
+      # testing against a stale build fails for reasons unrelated to the change.
+      - run: pnpm verify
+
+      # The published page bundles the engine at build time. If this leaves the
+      # working tree dirty, docs/index.html is out of date with the source and
+      # the live tool no longer matches the tested logic.
+      - name: Check published page is up to date
+        run: |
+          pnpm build:site
+          if ! git diff --quiet -- docs/index.html; then
+            echo "docs/index.html is stale. Run 'pnpm build:site' and commit the result."
+            git diff --stat -- docs/index.html
+            exit 1
+          fi
