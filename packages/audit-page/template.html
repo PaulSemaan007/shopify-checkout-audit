@@ -273,6 +273,25 @@
 
   .toggle input { accent-color: var(--accent); width: 15px; height: 15px; cursor: pointer; }
 
+  /* ---------- Results toolbar ---------- */
+
+  .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    padding: 18px 0 0;
+  }
+
+  .btn-small { padding: 7px 14px; font-size: 0.875rem; }
+
+  .toolbar-note {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    color: var(--accent);
+  }
+
   /* ---------- Verdict ---------- */
 
   #results[hidden] { display: none; }
@@ -646,7 +665,7 @@
   }
 
   @media print {
-    .panel, .privacy, .countdown { display: none; }
+    .panel, .privacy, .countdown, .toolbar, .next-step { display: none; }
     body { background: #fff; color: #000; }
     .finding { break-inside: avoid; }
   }
@@ -698,6 +717,11 @@
   </section>
 
   <section id="results" hidden>
+    <div id="toolbar" class="toolbar" hidden>
+      <button class="btn-ghost btn-small" id="copy-md" type="button">Copy report as Markdown</button>
+      <button class="btn-ghost btn-small" id="print" type="button">Print / save as PDF</button>
+      <span class="toolbar-note" id="copy-status" role="status"></span>
+    </div>
     <div id="portfolio" hidden></div>
     <div id="detail"></div>
 
