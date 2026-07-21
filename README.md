@@ -1,5 +1,8 @@
 # Shopify Checkout Script Audit
 
+[![CI](https://github.com/PaulSemaan007/shopify-checkout-audit/actions/workflows/ci.yml/badge.svg)](https://github.com/PaulSemaan007/shopify-checkout-audit/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 **Which of your checkout scripts can't survive the 26 August 2026 upgrade?**
 
 On 26 August 2026, Shopify auto-upgrades the Thank You and Order Status pages on every non-Plus
