@@ -12,9 +12,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Version comes from "packageManager" in package.json. Setting it here
+      # too makes the action fail on a version mismatch.
       - uses: pnpm/action-setup@v4
-        with:
-          version: 10
 
       - uses: actions/setup-node@v4
         with:
