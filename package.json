@@ -1,0 +1,18 @@
+{
+  "name": "shopify-checkout-audit",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Find out which of your Shopify checkout scripts cannot be migrated before the 26 August 2026 auto-upgrade.",
+  "scripts": {
+    "build": "pnpm -r build",
+    "test": "pnpm -r build && pnpm -r test",
+    "typecheck": "pnpm -r typecheck",
+    "verify": "pnpm -r build && pnpm -r typecheck && pnpm -r test",
+    "build:site": "pnpm -r build && node -e \"require('fs').copyFileSync('packages/audit-page/dist/audit.html','docs/index.html')\""
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "pnpm@10.32.1",
+  "license": "MIT"
+}
