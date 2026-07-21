@@ -293,6 +293,84 @@ describe('analyze — expanded vendor coverage', () => {
   });
 });
 
+describe('analyze — duplicate accounts', () => {
+  /**
+   * A separate failure from the migration, and one that is already costing the
+   * merchant money. Two pixels both fire, conversions double-count, reported
+   * ROAS is inflated, and bids placed on that number overspend.
+   */
+  it('flags two different Meta pixel IDs', () => {
+    const report = analyze({
+      additionalScripts: `
+        fbq('init', '1111111111111111');
+        fbq('init', '2222222222222222');
+        fbq('track', 'Purchase');`,
+      now: NOW,
+    });
+
+    const dup = report.findings.find((f) => f.vendorId === 'duplicate-meta-pixel');
+    expect(dup).toBeDefined();
+    expect(dup?.impact).toBe('high');
+    expect(dup?.accountId).toContain('1111111111111111');
+    expect(dup?.accountId).toContain('2222222222222222');
+    expect(dup?.consequence).toMatch(/counted more than once/i);
+  });
+
+  it('does NOT flag a single ID that legitimately appears twice', () => {
+    // Google Ads repeats its AW- identifier in both config and send_to. Treating
+    // that as a duplicate would fire on almost every correctly configured store.
+    const report = analyze({
+      additionalScripts: `
+        gtag('config', 'AW-123456789');
+        gtag('event', 'conversion', { 'send_to': 'AW-123456789/AbC-D_efG' });`,
+      now: NOW,
+    });
+
+    expect(report.findings.find((f) => f.vendorId === 'duplicate-google-ads')).toBeUndefined();
+  });
+
+  it('flags two different Google Ads conversion accounts', () => {
+    const report = analyze({
+      additionalScripts: `
+        gtag('config', 'AW-111111111');
+        gtag('config', 'AW-222222222');`,
+      now: NOW,
+    });
+
+    expect(report.findings.find((f) => f.vendorId === 'duplicate-google-ads')).toBeDefined();
+  });
+
+  it('flags two GA4 properties at lower severity than an ad platform', () => {
+    const report = analyze({
+      additionalScripts: `
+        gtag('config', 'G-AAAAAAAAAA');
+        gtag('config', 'G-BBBBBBBBBB');`,
+      now: NOW,
+    });
+
+    const dup = report.findings.find((f) => f.vendorId === 'duplicate-ga4');
+    expect(dup).toBeDefined();
+    // Double-counted analytics is wrong data; double-counted ad conversions
+    // actively misdirect spend.
+    expect(dup?.impact).toBe('medium');
+  });
+
+  it('stays silent when a vendor is absent entirely', () => {
+    const report = analyze({ additionalScripts: '<script>console.log(1);</script>', now: NOW });
+    expect(report.findings.filter((f) => f.vendorId.startsWith('duplicate-'))).toHaveLength(0);
+  });
+
+  it('routes duplicates to manual review rather than guessing which to keep', () => {
+    const report = analyze({
+      additionalScripts: "fbq('init','1111111111111111'); fbq('init','2222222222222222');",
+      now: NOW,
+    });
+    const dup = report.findings.find((f) => f.vendorId === 'duplicate-meta-pixel');
+    // Only the merchant knows which account is live.
+    expect(dup?.migration).toBe('manual-review');
+  });
+});
+
 describe('analyze — after the deadline', () => {
   it('switches to past tense once the cutover has happened', () => {
     const report = analyze({

@@ -365,6 +365,25 @@
   .tally-chip.sev-medium { background: var(--medium-bg); color: var(--medium); }
   .tally-chip.sev-low { background: var(--low-bg); color: var(--low); }
 
+  .now-band {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 12px 14px;
+    background: var(--high-bg);
+    border-left: 2px solid var(--high);
+  }
+
+  .now-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--high);
+  }
+
+  .now-text { margin: 0; font-size: 0.9375rem; color: var(--ink-2); }
+
   /* ---------- Findings ---------- */
 
   .section-title {

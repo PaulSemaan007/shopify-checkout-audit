@@ -91,6 +91,67 @@ function scan(haystack: string, sigs: VendorSignature[], source: Finding['source
   return found;
 }
 
+/** Every distinct account/tag ID present for a vendor, in document order. */
+function collectAccountIds(haystack: string, sig: VendorSignature): string[] {
+  if (!sig.idPattern) return [];
+
+  const flags = sig.idPattern.flags.includes('g') ? sig.idPattern.flags : `${sig.idPattern.flags}g`;
+  const re = new RegExp(sig.idPattern.source, flags);
+  const ids = new Set<string>();
+
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(haystack)) !== null) {
+    ids.add(match[1] ?? match[0]);
+    // A zero-length match would loop forever otherwise.
+    if (match.index === re.lastIndex) re.lastIndex += 1;
+  }
+
+  return [...ids];
+}
+
+/**
+ * Detect more than one distinct account for the same vendor.
+ *
+ * This is a different failure from the migration itself, and it is already
+ * costing the merchant money today. The usual cause is an agency handover where
+ * the previous pixel was never removed: both fire on every purchase, so
+ * conversions are counted twice. Reported ROAS looks better than reality, and
+ * bidding on that inflated number means overspending.
+ *
+ * Note this correctly ignores a single ID appearing several times — Google Ads
+ * legitimately repeats its AW- identifier in both `config` and `send_to`.
+ */
+function detectDuplicateAccounts(haystack: string, sigs: VendorSignature[]): Finding[] {
+  const findings: Finding[] = [];
+
+  for (const sig of sigs) {
+    if (!sig.idPattern) continue;
+    if (!firstMatch(haystack, sig.patterns)) continue;
+
+    const ids = collectAccountIds(haystack, sig);
+    if (ids.length < 2) continue;
+
+    const isAdConversion = sig.category === 'ad-conversion';
+
+    findings.push({
+      vendorId: `duplicate-${sig.id}`,
+      vendorName: `Duplicate ${sig.name} accounts`,
+      category: sig.category,
+      migration: 'manual-review',
+      impact: isAdConversion ? 'high' : 'medium',
+      consequence: isAdConversion
+        ? `${ids.length} different accounts are configured (${ids.join(', ')}). Both fire on every purchase, so conversions are counted more than once. Reported return on ad spend looks better than it is, and any bidding decision made on that number overspends. This is usually a leftover from an agency handover where the previous tag was never removed — and it is costing money now, independently of the migration.`
+        : `${ids.length} different accounts are configured (${ids.join(', ')}). Events are being sent to all of them, so reports double-count and any downstream dashboard built on this data is wrong.`,
+      remedy:
+        'Confirm which account is the live one, then delete the others from Additional Scripts. If both are genuinely wanted, keep exactly one in the migrated setup and route the second deliberately — duplicated tags carried into the new pixel reproduce the double-counting rather than fixing it.',
+      source: 'additional-scripts',
+      accountId: ids.join(', '),
+    });
+  }
+
+  return findings;
+}
+
 /**
  * Build the one-line verdict. Wording changes materially depending on whether
  * the store has already been upgraded, because "will break" and "has already
@@ -179,6 +240,7 @@ export function analyze(input: AnalysisInput): AnalysisReport {
   if (input.additionalScripts && input.additionalScripts.trim() !== '') {
     findings.push(...scan(input.additionalScripts, SIGNATURES, 'additional-scripts'));
     findings.push(...scan(input.additionalScripts, STRUCTURAL_FLAGS, 'additional-scripts'));
+    findings.push(...detectDuplicateAccounts(input.additionalScripts, SIGNATURES));
   }
 
   for (const tag of input.scriptTags ?? []) {

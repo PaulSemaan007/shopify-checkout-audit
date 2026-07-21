@@ -314,6 +314,24 @@ function renderReportBlock(report: AnalysisReport, heading?: string): HTMLElemen
   });
   text.appendChild(tally);
 
+  // Duplicate accounts are a different class of problem: they are wrong *now*,
+  // not on 26 August. Worth separating from the deadline framing.
+  const duplicates = report.findings.filter((f) => f.vendorId.startsWith('duplicate-'));
+  if (duplicates.length > 0) {
+    const band = el('div', 'now-band');
+    band.appendChild(el('span', 'now-label', 'Already happening'));
+    band.appendChild(
+      el(
+        'p',
+        'now-text',
+        duplicates.length === 1
+          ? `${duplicates[0]!.vendorName} — this is double-counting conversions today, independently of the migration.`
+          : `${duplicates.length} vendors have more than one account configured. These are double-counting conversions today, independently of the migration.`,
+      ),
+    );
+    text.appendChild(band);
+  }
+
   verdict.appendChild(scoreBlock);
   verdict.appendChild(text);
   wrap.appendChild(verdict);
@@ -605,7 +623,10 @@ function init(): void {
 
     const second = newEntry();
     second.label = 'harbourgoods.myshopify.com';
-    second.scripts = "fbq('init', '9988776655443322');\nfbq('track', 'Purchase');";
+    // Two pixel IDs — the classic agency-handover leftover, double-counting
+    // every purchase today rather than on 26 August.
+    second.scripts =
+      "<!-- added 2023 -->\nfbq('init', '9988776655443322');\n\n<!-- added by new agency 2025 -->\nfbq('init', '1122334455667788');\nfbq('track', 'Purchase');";
 
     const third = newEntry();
     third.label = 'quietmakers.myshopify.com';
