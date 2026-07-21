@@ -600,6 +600,39 @@
   .footer p { margin: 0; font-size: 0.875rem; color: var(--ink-3); }
   .footer strong { color: var(--ink-2); font-weight: 600; }
 
+  .next-step {
+    margin-top: 10px;
+    padding: 18px 20px;
+    background: var(--accent-soft);
+    border-left: 2px solid var(--accent);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .next-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+
+  .next-step p { margin: 0; font-size: 0.9375rem; color: var(--ink-2); }
+  .next-step code { font-family: var(--font-mono); font-size: 0.85em; color: var(--ink); }
+
+  .next-cta {
+    align-self: flex-start;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--accent);
+    text-decoration: none;
+    margin-top: 2px;
+  }
+
+  .next-cta:hover { text-decoration: underline; }
+  .next-cta:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
   @media (max-width: 640px) {
     .verdict { grid-template-columns: 1fr; gap: 20px; }
     .finding-head { flex-direction: column; }
@@ -679,6 +712,23 @@
         whether any given tag is currently firing on your live store. Proving that requires watching real orders
         against real events over time — which is a different job than this page does.
       </p>
+
+      <div class="next-step">
+        <span class="next-label">That second job</span>
+        <p>
+          Knowing what <em>will</em> break is the easy half. The expensive half is not noticing when tracking
+          quietly stops — the usual gap between breaking and finding out is weeks, measured in ad spend
+          allocated against numbers that were never real.
+        </p>
+        <p>
+          I&rsquo;m building the monitoring side of this: reconciling Shopify&rsquo;s order webhook against
+          <code>checkout_completed</code> events, so orders that produced no tracking event surface in days
+          rather than at the next quarterly review. If you want it on your store, or you want a reviewed
+          migration report across a client list, say so.
+        </p>
+        <a class="next-cta" href="https://github.com/PaulSemaan007/shopify-checkout-audit/issues/new"
+           target="_blank" rel="noopener noreferrer">Get in touch &rarr;</a>
+      </div>
     </footer>
   </section>
 </div>
