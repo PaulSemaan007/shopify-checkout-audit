@@ -44,11 +44,26 @@ help if you manage forty stores.
 
 ## What it knows
 
-The classifier covers the tracking that actually turns up in Additional Scripts — Google Ads, GA4,
-GTM, Meta, TikTok, Microsoft Ads, Pinterest, Snapchat, X, Reddit, Criteo; the affiliate networks
-(ShareASale, Awin, Impact, CJ, Rakuten, Refersion); attribution platforms (Triple Whale, Northbeam,
-Elevar); lifecycle tools (Klaviyo, Attentive, Postscript); reviews, loyalty, subscriptions, session
-recording and support widgets.
+Roughly 50 vendor signatures across the categories that actually turn up in Additional Scripts:
+
+- **Ad conversion** — Google Ads, GA4, GTM, Meta, TikTok, Microsoft Ads, Pinterest, Snapchat, X,
+  Reddit, Criteo, LinkedIn, Taboola, Outbrain, Quora, Nextdoor, Amazon Attribution
+- **Affiliate** — ShareASale, Awin, Impact, CJ, Rakuten, Refersion *(breakage here is a commercial
+  dispute, not just a data gap: partners go unpaid and escalate)*
+- **Attribution** — Triple Whale, Northbeam, Elevar, Hyros, Rockerbox, Wicked Reports
+- **Analytics & CDP** — Segment, Mixpanel, Amplitude, Heap, PostHog, Matomo, Plausible, Fathom
+- **Lifecycle** — Klaviyo, Attentive, Postscript, Omnisend, Drip, Mailchimp, Sendlane
+- **Cannot be migrated** — consent banners (Cookiebot, OneTrust, Osano, Termly, iubenda),
+  post-purchase surveys (Fairing, KnoCommerce, Grapevine), order tracking widgets (AfterShip,
+  Route, ParcelPanel), personalisation (Rebuy, Nosto, Dynamic Yield), A/B testing (Optimizely,
+  VWO, Convert, Intelligems), live chat, session recording
+- **Reviews, loyalty, subscriptions** — Yotpo, Okendo, Stamped, Loox, Judge.me, Smile, LoyaltyLion,
+  Rivo, Growave, Recharge, Skio, Loop, ReferralCandy, Friendbuy
+- **Post-purchase upsells** — ReConvert, AfterSell, Zipify OCU *(these also change when
+  `checkout_completed` fires, which quietly alters how your conversion tracking behaves)*
+
+Plus structural flags that apply regardless of vendor: Liquid `checkout.*` usage, DOM manipulation,
+and unattributed third-party scripts.
 
 For each one it reports what you lose in business terms, not just that it exists:
 
@@ -56,8 +71,14 @@ For each one it reports what you lose in business terms, not just that it exists
 > every tag inside it goes with it. One broken container can take down Google Ads, GA4, Meta,
 > affiliate and partner tags simultaneously, with no visible symptom.
 
-Plus structural flags that apply regardless of vendor: Liquid `checkout.*` usage, DOM manipulation,
-and unattributed third-party scripts.
+## For agencies
+
+Add a row per client store and it ranks the whole list worst-first, with a **Can't migrate** column
+so you know which clients need developer time budgeted rather than a config change.
+
+**Copy report as Markdown** exports the whole thing — paste it straight into a client email, a
+ticket, or a proposal. The data never leaves your machine; there's no share link and nothing is
+uploaded.
 
 ## Accuracy and limits
 
