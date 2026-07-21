@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { analyze } from '../src/analyze.js';
+import { SIGNATURES, STRUCTURAL_FLAGS } from '../src/signatures.js';
 
 /** Fixed clock so deadline assertions don't rot. 37 days before the cutover. */
 const NOW = new Date('2026-07-20T00:00:00Z');
@@ -211,6 +212,84 @@ describe('analyze — deduplication and coverage', () => {
       now: NOW,
     });
     expect(report.findings.map((f) => f.vendorId)).toContain('hotjar');
+  });
+});
+
+describe('analyze — the scripts that cannot be migrated at all', () => {
+  /**
+   * This category is the product's whole differentiator: Shopify's own upgrade
+   * guide lists scripts and suggests apps, but does not flag the ones with no
+   * migration target. Anything that renders UI is in that group, because web
+   * pixels are sandboxed and cannot draw.
+   */
+  const cannotBecomeAPixel = (id: string, scripts: string): void => {
+    const report = analyze({ additionalScripts: scripts, now: NOW });
+    const finding = report.findings.find((f) => f.vendorId === id);
+    expect(finding, `expected to detect ${id}`).toBeDefined();
+    expect(['ui-extension', 'unsupported']).toContain(finding!.migration);
+  };
+
+  it('flags a cookie consent banner', () => {
+    cannotBecomeAPixel('consent-banner', '<script src="https://consent.cookiebot.com/uc.js"></script>');
+  });
+
+  it('flags a post-purchase survey', () => {
+    // Often a store's only zero-party attribution, so losing it silently is
+    // worse than losing a redundant ad pixel.
+    cannotBecomeAPixel('post-purchase-survey', '<script src="https://ce.getfairing.com/f.js"></script>');
+  });
+
+  it('flags an A/B testing tool', () => {
+    cannotBecomeAPixel('ab-testing', '<script src="https://cdn.optimizely.com/js/12345.js"></script>');
+  });
+
+  it('flags an order tracking widget', () => {
+    cannotBecomeAPixel('order-tracking', '<script src="https://button.aftership.com/all.js"></script>');
+  });
+
+  it('flags a personalisation widget', () => {
+    cannotBecomeAPixel('rebuy-nosto', '<script src="https://cdn.rebuyengine.com/onsite/js/rebuy.js"></script>');
+  });
+
+  it('flags a live chat widget', () => {
+    cannotBecomeAPixel('tidio-crisp-tawk', '<script src="https://code.tidio.co/abc.js"></script>');
+  });
+
+  it('rates consent banner breakage above a chat widget', () => {
+    // Consent affects other tags and carries compliance weight; a missing chat
+    // bubble is cosmetic.
+    const consent = SIGNATURES.find((s) => s.id === 'consent-banner')!;
+    const chat = SIGNATURES.find((s) => s.id === 'tidio-crisp-tawk')!;
+    expect(consent.impact).toBe('high');
+    expect(chat.impact).toBe('low');
+  });
+});
+
+describe('analyze — expanded vendor coverage', () => {
+  it.each([
+    ['Segment', 'segment', '<script src="https://cdn.segment.com/analytics.js/v1/KEY/analytics.min.js"></script>'],
+    ['LinkedIn Insight', 'linkedin-insight', '<script>_linkedin_partner_id = "123456";</script>'],
+    ['Hyros', 'hyros', '<script src="https://t.hyros.com/v1/lst/universal-script?ph=abc"></script>'],
+    ['Omnisend', 'omnisend-drip-mailchimp', '<script>omnisend.push(["track","$placedOrder"]);</script>'],
+    ['Okendo', 'okendo-stamped-loox', '<script src="https://cdn-static.okendo.io/reviews.js"></script>'],
+    ['Mixpanel', 'product-analytics', '<script>mixpanel.track("Purchase");</script>'],
+    ['Taboola', 'taboola-outbrain', '<script>_tfa.push({notify: "event", name: "purchase"});</script>'],
+    ['post-purchase upsell', 'post-purchase-upsell', '<script src="https://cdn.reconvert.io/rc.js"></script>'],
+  ])('detects %s', (_label, id, script) => {
+    const report = analyze({ additionalScripts: script, now: NOW });
+    expect(report.findings.map((f) => f.vendorId)).toContain(id);
+  });
+
+  it('gives every signature a consequence and a remedy worth reading', () => {
+    for (const sig of [...SIGNATURES, ...STRUCTURAL_FLAGS]) {
+      expect(sig.consequence.length, `${sig.id} consequence`).toBeGreaterThan(40);
+      expect(sig.remedy.length, `${sig.id} remedy`).toBeGreaterThan(30);
+    }
+  });
+
+  it('uses no duplicate signature ids', () => {
+    const ids = [...SIGNATURES, ...STRUCTURAL_FLAGS].map((s) => s.id);
+    expect(new Set(ids).size).toBe(ids.length);
   });
 });
 

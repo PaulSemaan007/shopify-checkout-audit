@@ -406,7 +406,8 @@ export const SIGNATURES: VendorSignature[] = [
     migration: 'unsupported',
     impact: 'low',
     consequence: 'Session replay stops on the order page and cannot be reproduced within the pixel sandbox.',
-    remedy: 'Accept the gap on this page.',
+    remedy:
+      'Keep FullStory on the rest of the storefront and accept that the order page is now a blind spot. Do not spend developer time attempting a pixel-based replacement — the sandbox has no access to the page, so it cannot be done.',
   },
 
   // ---------------------------------------------------------------------------
@@ -432,6 +433,296 @@ export const SIGNATURES: VendorSignature[] = [
     impact: 'low',
     consequence: 'The support widget stops rendering on the order status page.',
     remedy: 'Accept the change, or implement a supported checkout UI extension.',
+  },
+  {
+    id: 'intercom',
+    name: 'Intercom messenger',
+    category: 'support',
+    patterns: [/intercom/i, /widget\.intercom\.io/i],
+    migration: 'ui-extension',
+    impact: 'low',
+    consequence: 'The messenger disappears from the order status page, diverting post-purchase questions to email.',
+    remedy: 'Accept the change on this page, or build a checkout UI extension.',
+  },
+  {
+    id: 'tidio-crisp-tawk',
+    name: 'Live chat widget (Tidio / Crisp / Tawk.to / LiveChat)',
+    category: 'support',
+    patterns: [/tidio/i, /crisp\.chat/i, /tawk\.to/i, /livechatinc/i, /drift\.com/i],
+    migration: 'ui-extension',
+    impact: 'low',
+    consequence: 'The chat widget stops appearing on the order status page.',
+    remedy: 'Accept the change, or use the vendor’s Shopify app if it supports checkout extensibility.',
+  },
+
+  // ---------------------------------------------------------------------------
+  // Consent banners. These matter disproportionately: they render UI, so they
+  // CANNOT become pixels, and merchants tend to assume anything privacy-related
+  // is handled automatically.
+  // ---------------------------------------------------------------------------
+  {
+    id: 'consent-banner',
+    name: 'Cookie consent banner (Cookiebot / OneTrust / Osano / Termly / iubenda)',
+    category: 'personalization',
+    patterns: [
+      /cookiebot/i,
+      /onetrust/i,
+      /osano/i,
+      /termly/i,
+      /iubenda/i,
+      /cookieconsent/i,
+      /cookieyes/i,
+    ],
+    migration: 'ui-extension',
+    impact: 'high',
+    consequence:
+      'A hand-rolled consent banner stops rendering on the order page. Beyond the missing UI, this can break consent signalling for every other tag that depends on it — and in the EU/UK that has compliance implications, not just measurement ones.',
+    remedy:
+      'Do not attempt to rebuild this in a pixel; it renders UI and cannot work there. Use a Shopify consent app that integrates with the Customer Privacy API, which is the supported route and also carries consent into the checkout sandbox correctly.',
+    docs: 'https://shopify.dev/docs/api/customer-privacy',
+  },
+  {
+    id: 'consentmo-pandectes',
+    name: 'Shopify consent app script (Consentmo / Pandectes)',
+    category: 'personalization',
+    patterns: [/consentmo/i, /pandectes/i, /gdpr.*consent/i],
+    migration: 'app-pixel',
+    impact: 'medium',
+    consequence:
+      'A manually pasted snippet from a consent app stops running. The app itself usually keeps working through its own integration, so this is often a leftover rather than a live dependency.',
+    remedy:
+      'Confirm the app is on its Checkout Extensibility integration, then delete this snippet — duplicated consent logic causes banners to double-fire.',
+  },
+
+  // ---------------------------------------------------------------------------
+  // Post-purchase surveys. These live specifically on the Thank You page, which
+  // is exactly the page being replaced, and they are pure UI.
+  // ---------------------------------------------------------------------------
+  {
+    id: 'post-purchase-survey',
+    name: 'Post-purchase survey (Fairing / Enquire / KnoCommerce / Grapevine)',
+    category: 'personalization',
+    patterns: [/fairing/i, /enquirelabs/i, /knocommerce/i, /grapevine.*survey/i, /getfairing/i],
+    migration: 'ui-extension',
+    impact: 'high',
+    consequence:
+      'Your "how did you hear about us?" survey stops appearing. This is often the only zero-party attribution a store has — the one source that survives iOS restrictions — so losing it silently degrades channel attribution in a way no ad platform will replace.',
+    remedy:
+      'Use the vendor’s official Shopify app, which renders through a supported checkout UI extension. A pixel cannot display a survey under any circumstances.',
+  },
+
+  // ---------------------------------------------------------------------------
+  // Order tracking and post-purchase upsells — also Thank You / Order Status
+  // page specific.
+  // ---------------------------------------------------------------------------
+  {
+    id: 'order-tracking',
+    name: 'Order tracking widget (AfterShip / Route / ParcelPanel / Track123)',
+    category: 'personalization',
+    patterns: [/aftership/i, /route\.com|routeapp/i, /parcelpanel/i, /track123/i, /rush.*tracking/i],
+    migration: 'ui-extension',
+    impact: 'medium',
+    consequence:
+      'The embedded tracking widget disappears from the order status page, so customers who came to check delivery status contact support instead.',
+    remedy: 'Install the vendor’s Shopify app, which renders via a supported UI extension.',
+  },
+  {
+    id: 'post-purchase-upsell',
+    name: 'Post-purchase upsell (ReConvert / AfterSell / Zipify OCU)',
+    category: 'personalization',
+    patterns: [/reconvert/i, /aftersell/i, /zipify/i, /onecheckoutupsell/i],
+    migration: 'app-pixel',
+    impact: 'high',
+    consequence:
+      'Post-purchase offers stop rendering — direct, immediate revenue loss rather than a measurement gap. Note these apps also shift when checkout_completed fires, so their presence changes how your conversion tracking behaves.',
+    remedy:
+      'Use the vendor’s official app on its post-purchase extension. Remove any manual snippet; both running at once can double-charge or double-render offers.',
+  },
+
+  // ---------------------------------------------------------------------------
+  // A/B testing — rewriting page content is the entire point, so none of it can
+  // survive in a sandbox.
+  // ---------------------------------------------------------------------------
+  {
+    id: 'ab-testing',
+    name: 'A/B testing (Optimizely / VWO / Convert / Intelligems)',
+    category: 'personalization',
+    patterns: [/optimizely/i, /visualwebsiteoptimizer|vwo\.com/i, /convert\.com\/.*js/i, /intelligems/i],
+    migration: 'unsupported',
+    impact: 'medium',
+    consequence:
+      'Experiments stop running on the order page, and any test measuring post-purchase behaviour loses its exposure event — which quietly invalidates the results rather than obviously breaking them.',
+    remedy:
+      'Client-side experimentation cannot run in the pixel sandbox. Move post-purchase tests to a server-side or app-based approach, and treat any in-flight test spanning the upgrade as compromised.',
+  },
+
+  // ---------------------------------------------------------------------------
+  // Product analytics and CDPs.
+  // ---------------------------------------------------------------------------
+  {
+    id: 'segment',
+    name: 'Segment (Twilio CDP)',
+    category: 'analytics',
+    patterns: [/segment\.com\/analytics\.js/i, /analytics\.track\s*\(/i, /cdn\.segment\.com/i],
+    migration: 'custom-pixel',
+    impact: 'high',
+    consequence:
+      'The Order Completed event stops reaching Segment — and because Segment fans out to every downstream destination, one break here can silently stop several tools at once.',
+    remedy:
+      'Rebuild the track call inside a custom pixel from the checkout_completed payload, or move to Segment’s server-side integration, which is more robust across changes like this one.',
+  },
+  {
+    id: 'product-analytics',
+    name: 'Product analytics (Mixpanel / Amplitude / Heap / PostHog)',
+    category: 'analytics',
+    patterns: [/mixpanel/i, /amplitude/i, /heap\.io|heapanalytics/i, /posthog/i],
+    migration: 'custom-pixel',
+    impact: 'medium',
+    consequence: 'Purchase events stop reaching your product analytics, so funnel and cohort reports under-report conversions.',
+    remedy: 'Rebuild the purchase event in a custom pixel subscribing to checkout_completed.',
+  },
+  {
+    id: 'privacy-analytics',
+    name: 'Privacy-focused analytics (Matomo / Plausible / Fathom)',
+    category: 'analytics',
+    patterns: [/matomo|piwik/i, /plausible\.io/i, /usefathom/i],
+    migration: 'custom-pixel',
+    impact: 'low',
+    consequence: 'Order page views and goal completions stop being recorded.',
+    remedy: 'Rebuild as a custom pixel, or accept the gap if the order page is not central to your reporting.',
+  },
+
+  // ---------------------------------------------------------------------------
+  // Additional ad networks.
+  // ---------------------------------------------------------------------------
+  {
+    id: 'linkedin-insight',
+    name: 'LinkedIn Insight Tag',
+    category: 'ad-conversion',
+    patterns: [/_linkedin_partner_id/i, /snap\.licdn\.com/i],
+    migration: 'custom-pixel',
+    impact: 'high',
+    consequence: 'LinkedIn stops recording conversions, breaking campaign reporting and optimisation — usually significant for B2B stores.',
+    remedy: 'Rebuild the conversion event in a custom pixel subscribing to checkout_completed.',
+  },
+  {
+    id: 'taboola-outbrain',
+    name: 'Native advertising (Taboola / Outbrain)',
+    category: 'ad-conversion',
+    patterns: [/taboola/i, /outbrain/i, /_tfa\b/],
+    migration: 'custom-pixel',
+    impact: 'high',
+    consequence: 'Native ad conversions stop being recorded, so spend continues against unreported results.',
+    remedy: 'Rebuild the conversion tag inside a custom pixel and verify with a test order.',
+  },
+  {
+    id: 'quora-nextdoor',
+    name: 'Quora / Nextdoor pixel',
+    category: 'ad-conversion',
+    patterns: [/qp\s*\(|q\.quora\.com/i, /nextdoor.*pixel|ndp\s*\(/i],
+    migration: 'custom-pixel',
+    impact: 'medium',
+    consequence: 'Conversions stop being attributed on these channels.',
+    remedy: 'Rebuild in a custom pixel subscribing to checkout_completed.',
+  },
+  {
+    id: 'amazon-attribution',
+    name: 'Amazon Attribution tag',
+    category: 'attribution',
+    patterns: [/amazon-adsystem/i, /amazon.*attribution/i],
+    migration: 'custom-pixel',
+    impact: 'medium',
+    consequence: 'Off-Amazon conversions stop being attributed, so DSP and sponsored-brand reporting under-counts.',
+    remedy: 'Rebuild the tag in a custom pixel.',
+  },
+
+  // ---------------------------------------------------------------------------
+  // Additional attribution platforms.
+  // ---------------------------------------------------------------------------
+  {
+    id: 'hyros',
+    name: 'Hyros',
+    category: 'attribution',
+    patterns: [/hyros/i, /t\.hyros\.com/i],
+    migration: 'custom-pixel',
+    impact: 'high',
+    consequence: 'Hyros loses purchase data, corrupting the attribution model used to allocate ad spend.',
+    remedy: 'Rebuild the Hyros purchase call in a custom pixel, or use their supported Shopify integration.',
+  },
+  {
+    id: 'rockerbox-wicked',
+    name: 'Rockerbox / Wicked Reports',
+    category: 'attribution',
+    patterns: [/rockerbox/i, /wickedreports/i],
+    migration: 'custom-pixel',
+    impact: 'high',
+    consequence: 'Conversion data stops flowing, so multi-touch attribution silently degrades while still producing confident-looking reports.',
+    remedy: 'Rebuild in a custom pixel, or switch to the vendor’s server-side integration.',
+  },
+
+  // ---------------------------------------------------------------------------
+  // Additional lifecycle, reviews, loyalty and subscriptions.
+  // ---------------------------------------------------------------------------
+  {
+    id: 'omnisend-drip-mailchimp',
+    name: 'Email marketing (Omnisend / Drip / Mailchimp / Sendlane)',
+    category: 'email-sms',
+    patterns: [/omnisend/i, /getdrip|drip\.com/i, /mailchimp|chimpstatic/i, /sendlane/i],
+    migration: 'app-pixel',
+    impact: 'high',
+    consequence:
+      'Order events stop reaching your email platform, so post-purchase flows, receipts and win-back campaigns stop triggering. This is direct revenue, not just reporting.',
+    remedy: 'Verify the vendor’s official Shopify app is installed and tracking orders server-side, then remove the manual snippet.',
+  },
+  {
+    id: 'okendo-stamped-loox',
+    name: 'Reviews (Okendo / Stamped / Loox / Fera)',
+    category: 'reviews',
+    patterns: [/okendo/i, /stamped\.io/i, /loox\.io|loox\.app/i, /fera\.ai/i],
+    migration: 'app-pixel',
+    impact: 'medium',
+    consequence: 'Review requests stop being triggered by orders, so review volume declines gradually and without an obvious cause.',
+    remedy: 'Verify the vendor’s official app is installed and tracking orders.',
+  },
+  {
+    id: 'rivo-growave',
+    name: 'Loyalty (Rivo / Growave / Yotpo Loyalty)',
+    category: 'loyalty',
+    patterns: [/rivo\.io/i, /growave/i, /swellrewards/i],
+    migration: 'app-pixel',
+    impact: 'medium',
+    consequence: 'Points stop being awarded on purchase, producing customer complaints and manual support work.',
+    remedy: 'Verify the official app is installed and awarding points server-side.',
+  },
+  {
+    id: 'referral',
+    name: 'Referral programme (ReferralCandy / Friendbuy)',
+    category: 'loyalty',
+    patterns: [/referralcandy/i, /friendbuy/i],
+    migration: 'custom-pixel',
+    impact: 'medium',
+    consequence: 'Referral conversions stop being credited, so advocates go unrewarded and the programme quietly stalls.',
+    remedy: 'Use the vendor’s Shopify app where available, otherwise rebuild the conversion call in a custom pixel.',
+  },
+  {
+    id: 'skio-loop-bold',
+    name: 'Subscriptions (Skio / Loop / Bold)',
+    category: 'subscription',
+    patterns: [/skio/i, /loopsubscriptions|loopwork/i, /boldapps|bold.*subscription/i],
+    migration: 'app-pixel',
+    impact: 'medium',
+    consequence: 'Subscription messaging or management links stop appearing on the order page.',
+    remedy: 'Verify the app is on its Checkout Extensibility integration.',
+  },
+  {
+    id: 'rebuy-nosto',
+    name: 'Personalisation (Rebuy / Nosto / Dynamic Yield)',
+    category: 'personalization',
+    patterns: [/rebuyengine/i, /nosto/i, /dynamicyield/i],
+    migration: 'ui-extension',
+    impact: 'medium',
+    consequence: 'Personalised recommendations stop rendering on the order page — a direct loss of post-purchase revenue.',
+    remedy: 'Use the vendor’s official app with a supported checkout UI extension. Recommendations render UI and cannot live in a pixel.',
   },
 ];
 
