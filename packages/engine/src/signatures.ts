@@ -782,4 +782,52 @@ export const STRUCTURAL_FLAGS: VendorSignature[] = [
     remedy:
       'Identify the vendor and check whether they publish a Shopify app or an official web pixel. If neither exists, the script needs manual reimplementation inside a custom pixel.',
   },
+  {
+    id: 'checkout-step-gating',
+    name: 'Checkout step gating',
+    category: 'unknown',
+    patterns: [
+      /Shopify\s*\.\s*Checkout\s*\.\s*step/i,
+      /Shopify\s*\.\s*Checkout\s*\.\s*page/i,
+      /Shopify\s*\.\s*Checkout\s*\.\s*OrderStatus/i,
+      /['"]thank_you['"]/,
+      /order_status_url/i,
+    ],
+    migration: 'custom-pixel',
+    impact: 'critical',
+    consequence:
+      'This code checks which checkout step it is on before running — the classic `Shopify.Checkout.step === "thank_you"` guard. That object does not exist on the upgraded page, so the condition never becomes true and the script inside never executes. It fails completely and silently: no error, just a block of code that stops doing anything.',
+    remedy:
+      'Delete the step check entirely rather than porting it. In a custom pixel you subscribe to the `checkout_completed` event, which only fires at that point anyway — the gate becomes unnecessary rather than needing a replacement. Note the event is `checkout_completed`, not `purchase`; there is no `purchase` event in Shopify’s API and assuming there is is the single most common migration bug.',
+    docs: 'https://shopify.dev/docs/api/web-pixels-api/standard-events/checkout_completed',
+  },
+  {
+    id: 'jquery-dependency',
+    name: 'jQuery dependency',
+    category: 'unknown',
+    patterns: [/\$\s*\(\s*document\s*\)/, /jQuery\s*\(/, /\$\s*\.\s*(ajax|get|post)\s*\(/],
+    migration: 'unsupported',
+    impact: 'high',
+    consequence:
+      'This code assumes jQuery is loaded on the page. Web pixels run in an isolated sandbox with no page libraries available, so every jQuery call throws immediately and the whole script dies at the first line that uses it — including any tracking further down the same block.',
+    remedy:
+      'Rewrite the logic in plain JavaScript using the event payload. Do not attempt to load jQuery inside the pixel: even if it loads, there is no DOM for it to operate on, so the rewrite is unavoidable.',
+  },
+  {
+    id: 'dom-lifecycle',
+    name: 'Page lifecycle event listener',
+    category: 'unknown',
+    patterns: [
+      /DOMContentLoaded/i,
+      /window\s*\.\s*onload/i,
+      /addEventListener\s*\(\s*['"]load['"]/i,
+      /\$\s*\(\s*function\s*\(/,
+    ],
+    migration: 'custom-pixel',
+    impact: 'high',
+    consequence:
+      'This code waits for a page-load event before running. The pixel sandbox has no page lifecycle to wait for, so the listener never fires and everything inside it is dead code — again with no error to notice.',
+    remedy:
+      'Remove the wrapper and run the logic directly inside your `analytics.subscribe()` callback. The event firing is already the signal that the data is ready, which is what the load listener was standing in for.',
+  },
 ];
